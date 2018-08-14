@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>VuePM2.5</title>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.2.0/css/all.css" integrity="sha384-hWVjflwFxL6sNzntih27bfxkr27PmbbK/iSvJ+a4+0owXq79v+lsFkW54bOGbiDQ" crossorigin="anonymous">
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css' />
+    <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.3/css/bootstrap.min.css' />
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js'></script>
+    <style lang="en">
+        .wrapping {
+            max-width: 1024px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        
+        .status-aqi1 {
+            background-color: #34bf49;
+        }
+        
+        .status-aqi2 {
+            background-color: #ffff00;
+        }
+        
+        .status-aqi3 {
+            background-color: #ff7e00;
+        }
+        
+        .status-aqi4 {
+            background-color: #ff0000;
+        }
+        
+        .status-aqi5 {
+            background-color: #8f3f97;
+        }
+        
+        .status-aqi6 {
+            background-color: #7e0023;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" class="wrapping container">
+        <select name="" id="" class="form-control mb-3" v-model="selectLocation">
+            <option value="" disabled>--- 請選擇城市 ---</option>
+            <option value="all">全部</option>
+            <option v-for="(item,index) in locationOpts" :value="item">{{ item }}</option>
+        </select>
+        <div>
+            <h4>關注城市</h4>
+            <div class="card-columns">
+                <card-component v-for="item in focusLists" :prop-item="item" :key="item.SiteName" @focus="focusProcess(item)"></card-component>
+            </div>
+        </div>
+        <hr>
+        <div class="card-columns">
+            <card-component v-for="item in filterData" :prop-item="item" :key="item.SiteName" @focus="focusProcess(item)"></card-component>
+        </div>
+    </div>
+
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.17/vue.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js'></script>
+    <script type="text/x-template" id="cardTemplate">
+        <div class="card" :class="statusStyle">
+            <div class="card-header">
+                {{ info.County + " - " + info.SiteName }}
+                <a href="#" class="float-right" @click.prevent="focusSwitch">
+                    <template v-show="!info.isFocus">
+                    <i class="far fa-star" v-show="!info.isFocus"></i>
+                </template>
+                    <template v-show="info.isFocus">
+                    <i class="fas fa-star" v-show="info.isFocus"></i>
+                </template>
+                </a>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li>AQI 指數: {{ info.AQI }}</li>
+                    <li>PM2.5: {{ info["PM2.5"] }}</li>
+                    <li>說明: {{ info.Status }}</li>
+                </ul>
+            </div>
+        </div>
+    </script>
+    <script>
+        let cardConfig = {
+            props: ["propItem"],
+            template: "#cardTemplate",
+            data: function() {
+                return {
+                    info: this.propItem,
+                }
+            },
+            computed: {
+                statusStyle: function() {
+                    const vm = this;
+                    switch (vm.info.Status) {
+                        case "良好":
+                            return "status-aqi1";
+                            break;
+                        case '普通':
+                            return 'status-aqi2'
+                            break;
+                        case '對敏感族群不健康':
+                            return 'status-aqi3'
+                            break;
+                        case '對所有族群不健康':
+                            return 'status-aqi4'
+                            break;
+                        case '非常不健康':
+                            return 'status-aqi5'
+                            break;
+                        case '危害':
+                            return 'status-aqi6'
+                            break;
+                    }
+                    return
+                }
+            },
+            methods: {
+                focusSwitch: function() {
+                    this.$emit("focus", this.info)
+                }
+            }
+        };
+
+        var app = new Vue({
+            el: "#app",
+            data: {
+                data: [],
+                started: [],
+                filter: "",
+                location: [],
+                selectLocation: "",
+                focusData: [],
+                localFocus: JSON.parse(localStorage.getItem("storeFocus")) || [],
+            },
+            components: {
+                cardComponent: cardConfig,
+            },
+            computed: {
+                filterData: function() {
+                    var vm = this;
+                    if (vm.selectLocation) {
+                        if (vm.selectLocation === "all") {
+                            return vm.data;
+                        } else {
+                            return vm.data.filter(function(item, index) {
+                                return item.County === vm.selectLocation;
+                            })
+                        }
+                    }
+                },
+                locationOpts: function() {
+                    let vm = this;
+                    vm.location.splice(0, vm.location.length);
+                    vm.data.forEach(function(item, index) {
+                        let hasCounty = vm.location.find(function(el) {
+                            return el === item.County;
+                        });
+                        if (!hasCounty) {
+                            vm.location.push(item.County)
+                        }
+                    });
+
+                    return vm.location;
+                },
+                focusLists: function() {
+                    return this.data.filter(function(item, index) {
+                        return item.isFocus;
+                    });
+                }
+            },
+            methods: {
+                getData: function() {
+                    let vm = this;
+                    let api = "http://opendata2.epa.gov.tw/AQI.json";
+                    //console.log("Start");
+                    axios.get(api).then((res => {
+                        var resData = [];
+                        resData.push(res.data);
+                        //console.log(resData[0]);
+                        resData[0].forEach(function(item, index) {
+                            let hasFocus = vm.localFocus.find(function(el) {
+                                return el === item.SiteName;
+                            });
+                            item.isFocus = false;
+                            if (hasFocus) {
+                                item.isFocus = true;
+                            }
+                            //console.log(item);
+                            vm.data.push(item);
+                        });
+                    }));
+                },
+                focusProcess: function(item) {
+                    var vm = this;
+                    item.isFocus = !item.isFocus;
+                    localStorage.setItem("storeFocus", JSON.stringify(vm.focusLists.map(function(item, index) {
+                        return item = item.SiteName;
+                    })));
+                }
+            },
+            mounted: function() {
+                this.getData();
+            }
+        });
+    </script>
+</body>
+
+</html>
