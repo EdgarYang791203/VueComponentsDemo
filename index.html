@@ -176,6 +176,34 @@
                 }
             },
             methods: {
+                XMLGetData: function() {
+                    let vm = this;
+                    let api = "http://opendata2.epa.gov.tw/AQI.json";
+                    const xhr = new XMLHttpRequest();
+                    xhr.open("get", api, true);
+                    xhr.setRequestHeader("Content-type", "application/json");
+                    xhr.send(null);
+                    xhr.onload = function() {
+                        if (xhr.status == 200) {
+                            var str = JSON.parse(xhr.responseText);
+                            var resData = [];
+                            resData.push(str);
+                            resData[0].forEach(function(item, index) {
+                                let hasFocus = vm.localFocus.find(function(el) {
+                                    return el === item.SiteName;
+                                });
+                                item.isFocus = false;
+                                if (hasFocus) {
+                                    item.isFocus = true;
+                                }
+                                //console.log(item);
+                                vm.data.push(item);
+                            });
+                        } else {
+                            console.log("資料錯誤");
+                        }
+                    }
+                },
                 getData: function() {
                     let vm = this;
                     let api = "http://opendata2.epa.gov.tw/AQI.json";
@@ -206,7 +234,8 @@
                 }
             },
             mounted: function() {
-                this.getData();
+                //this.getData();
+                this.XMLGetData();
             }
         });
     </script>
