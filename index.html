@@ -181,7 +181,6 @@
                     let api = "http://opendata2.epa.gov.tw/AQI.json";
                     const xhr = new XMLHttpRequest();
                     xhr.open("get", api, true);
-                    xhr.setRequestHeader("Content-type", "application/json");
                     xhr.send(null);
                     xhr.onload = function() {
                         if (xhr.status == 200) {
